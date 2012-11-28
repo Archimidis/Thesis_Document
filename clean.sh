@@ -1,0 +1,10 @@
+rm *~
+rm *.bbl
+rm *.blg
+rm *.idx 
+rm *.toc 
+rm *.lof 
+rm *.lot
+rm *.out
+rm *.aux
+rm *.log
