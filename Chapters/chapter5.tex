@@ -1,14 +1,80 @@
 \chapter{Πρωτόκολλα Αρχιτεκτονικής}
 \label{chap:Protocols}
 
-**Παράδειγμα είναι η περίπτωση ενός αποτυχημένου peer που εμποδίζει την 
-ολοκλήρωση της υπηρεσίας. Η πολιτική που ακολουθεί είναι η διακοπή της 
-λειτουργίας της υπηρεσίας και η αναφορά σφάλματος. Αφήνεται έτσι στο 
-επόμενο αφαιρετικό επίπεδο στην αρχιτεκτονική να λύσει το πρόβλημα.**
+\section{Εισαγωγή}
+
+Στο παρόν κεφάλαιο περιγράφονται τα πρωτόκολλα του συστήματος. Η βιβλιοθήκη 
+έχει βασιστεί στο P-Grid και επομένως υλοποιείται ο αλγόριθμος exchange 
+όπως έχει οριστεί στο \citep{Abererb}. Θα γίνει μια μικρή περιγραφή του. 
+Στη συνέχει αναλύεται διεξοδικά το πρωτόκολλο ανοχής λαθών που ήταν και 
+ένας από τους στόχους της διπλωματικής η ανάπτυξή του.
 
 \section{Πρωτόκολλο Exchange}
 
-\ \ \ \ TODO
+Στα σχήματα \ref{algo:ExchangePart1} και \ref{algo:ExchangePart2} 
+παρουσιάζεται ο αλγόριθμος exchange.
+
+\begin{algorithm}
+\caption{Αλγόριθμος exchange, μέρος 1ο}
+\label{algo:ExchangePart1}
+\begin{algorithmic}[1]
+    \Procedure{exchange}{a1, a2, r} 
+        \State commonpath = common\_prefix\_of(path(a1), path(a2));
+        \State lc = length(commonpath);
+        \If{(lc > 0)}
+        \Comment{exchange references at the level where the paths agree}
+            \State commonrefs = union(refs(lc, a1), refs(lc, a2));
+            \State refs(lc, a1) = random\_select(refmax, commonrefs);
+            \State refs(lc, a2) = random\_select(refmax, commonrefs);
+            \State l1 = length(sub\_path(path(a1), lc + 1, length(path(a1))));
+            \State l2 = length(sub\_path(path(a2), lc + 1, length(path(a2))));            
+\newline \Comment{Case 1: if both remaining paths are empty introduce a new level}
+            \If{(l1 = 0 $\And$ l2 = 0 $\And$ lc < maxlength)}            
+                \State path(a1) = append(path(a1), 0);
+                \State path(a2) = append(path(a2), 1);
+                \State refs(lc + 1, a1) = {a2};
+                \State refs(lc + 1, a2) = {a1};
+            \EndIf
+\newline \Comment{Case 2: if one remaining path is empty split the shorter path}
+            \If{(l1 = 0 $\And$ l2 > 0 $\And$ lc < maxlength)}
+                \State path(a1) = append(path(a1), $\neg$value(lc + 1, path(a2)));
+                \State refs(lc + 1, a1) = {a2};
+                \State refs(lc + 1, a2) = random\_select(refmax, union({a1}, refs(lc + 1, a2)));
+            \EndIf
+\newline \Comment{Case 3: like case 2}
+            \If{(l1 > 0 $\And$ l2 = 0 $\And$ lc < maxlength)}
+                \State path(a2) = append(path(a2), $\neg$value(lc + 1, path(a1)));
+                \State refs(lc + 1, a2) = {a1};
+                \State refs(lc + 1, a1) = random\_select(refmax, union({a2}, refs(lc + 1, a1)));
+            \EndIf
+\algstore{ExchangeBreak}
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[h]
+\caption{Αλγόριθμος exchange, μέρος 2ο}
+\label{algo:ExchangePart2}
+\begin{algorithmic}[1]
+\algrestore{ExchangeBreak}
+\State \Comment{Case 4: recursively perform exchange with referenced peers}
+            \If{(l1 > 0 $\And$ l2 > 0 $\And$ r < recmax)}
+                \State refs1 = refs(lc + 1, a1) $\setminus$ {a2};
+                \State refs2 = refs(lc + 1, a2) $\setminus$ {a1};
+                \For{r1 $\in$ refs1}
+                    \If{online(peer(r1))}
+                        \State exchange(a2, peer(r1), r + 1)
+                    \EndIf
+                \EndFor
+                \For{r2 $\in$ refs2}
+                    \If{online(peer(r2))}
+                        \State exchange(a1, peer(r2), r + 1)
+                    \EndIf
+                \EndFor
+            \EndIf
+        \EndIf
+  \EndProcedure
+\end{algorithmic}
+\end{algorithm}
 
 \section{Πρωτόκολλο Ανοχής Λαθών (Fault-Tolerance)}
 
