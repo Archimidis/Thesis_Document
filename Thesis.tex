@@ -1,26 +1,31 @@
 \documentclass[a4paper, 11pt]{report}
 
-% Include any extra LaTeX packages required
-\usepackage[square, numbers, comma, sort&compress]{natbib}  % Use the "Natbib" style for the references in the Bibliography
-
+\usepackage[square, numbers, comma, sort&compress]{natbib}
 \usepackage{xltxtra}
-
-\setmainfont{GFS Neohellenic}
-
 \usepackage{xgreek}
 \usepackage{wrapfig}
 \usepackage{graphicx}
 \usepackage{caption}
 \usepackage[chapter]{algorithm}
-%\usepackage{algcompatible}
 \usepackage{algpseudocode}
 \usepackage{multirow}
 \usepackage{amsmath}
 \usepackage{makeidx}
 \usepackage{hyperref}
+\usepackage{fancyhdr}
 
 \newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
 \renewcommand{\listalgorithmname}{Κατάλογος αλγορίθμων}
+
+
+\setmainfont{GFS Neohellenic}
+\pagestyle{fancy}
+\rhead{}
+\lhead{\nouppercase{\textsc{\leftmark}}}
+\renewcommand{\headrulewidth}{0pt}
+\makeatletter
+\renewcommand{\chaptermark}[1]{\markboth{\textsc{\@chapapp}\ \thechapter:\ #1}{}}
+\makeatother
 
 %% ----------------------------------------------------------------
 \begin{document}
@@ -29,6 +34,11 @@
 \pagenumbering{roman}
 \begin{abstract}
 \ \ \ \ TODO Abstract
+\end{abstract}
+
+\renewcommand{\abstractname}{Eυχαριστίες}
+\begin{abstract}
+\ \ \ \ TODO Thanks Mum!
 \end{abstract}
 
 \tableofcontents
