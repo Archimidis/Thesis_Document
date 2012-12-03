@@ -1,4 +1,4 @@
-rm *~
+find . -name *~ -print0 | xargs -0 rm
 rm *.bbl
 rm *.blg
 rm *.idx 
