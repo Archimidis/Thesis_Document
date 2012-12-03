@@ -65,10 +65,10 @@ peer που έχουν αποθηκευμένους στους πίνακες δ
 
 
 \begin{algorithm}
-\caption{Αλγόριθμος exchange, μέρος 1ο}
+\caption{Αλγόριθμος Exchange, μέρος 1ο}
 \label{algo:ExchangePart1}
 \begin{algorithmic}[1]
-    \Procedure{exchange}{a1, a2, r} 
+    \Procedure{Exchange}{a1, a2, r} 
         \State commonpath = common\_prefix\_of(path(a1), path(a2));
         \State lc = length(commonpath);
         \If{(lc > 0)}
@@ -96,7 +96,7 @@ peer που έχουν αποθηκευμένους στους πίνακες δ
 \end{algorithm}
 
 \begin{algorithm}[h]
-\caption{Αλγόριθμος exchange, μέρος 2ο}
+\caption{Αλγόριθμος Exchange, μέρος 2ο}
 \label{algo:ExchangePart2}
 \begin{algorithmic}[1]
 \algrestore{ExchangeBreak}
@@ -212,11 +212,70 @@ churn.
 επικοινωνεί με τον πιο κοντινό του τοπολογικά για να λύσει το πρόβλημα. 
 Στην περίπτωση του P-Grid έχουμε την εφαρμογή της τεχνικής της 
 αντιγραφής (replication). Υπάρχουν peer αντίγραφα άλλων που ο ρόλος τους 
-είναι να πάρουν την θέση τους στην περίπτωση που αποτύχουν.
-
+είναι να πάρουν την θέση τους στην περίπτωση που αποτύχουν. 
+Η τεχνική του replication όμως στερεί
 %ΠΟΙΟ ΕΙΝΑΙ ΤΟ ΠΡΟΒΛΗΜΑ ΜΕ ΤΙΣ ΤΕΧΝΙΚΕΣ REDUNDANCY 
 %ΚΑΙ REPLICATION;
 
 \subsection{Αλγόριθμος Επιδιόρθωσης}
 
-\ \ \ \ TODO
+\begin{algorithm}
+\caption{Αλγόριθμος FindContinuation}
+\label{algo:continuation}
+\begin{algorithmic}[1]
+  \Procedure{p.FindContinuation}{pathTrace}
+        \If{p.isPrefixOf(pathTrace)}
+            \State \Return p.closestLevelTo(pathTrace)
+        \EndIf
+        \If{path(p) $\equiv$ pathTrace}
+            \State \Return p
+        \EndIf
+        \If{path(p).length() $\leq$ pathTrace.length()}
+            \State \Return p.closestLevelTo(pathTrace)
+        \EndIf
+        \State route1 $\gets$ pathTrace.revertAndAppend(pathTrace.lastBit())
+        \State route2 $\gets$ pathTrace.Append(pathTrace.lastBit())
+        \If{p.hasPrefix(route1)}
+            \If{path(p).length() $<$ route1.length()}
+                \If{path(p) $\equiv$ route1}
+                    \State \Return p
+                \Else
+                    \State \Return p.FindContinuation(route1)
+                \EndIf
+            \Else
+                \State \Return p.closestLevelTo(route2)
+            \EndIf
+        \Else
+            \If{p.hasPrefix(route2)}
+                \If{p has conjugate peer and not a subtree}
+                    \State \Return p
+                \Else
+                    \State \Return p.closestLevelTo(route1)
+                \EndIf
+            \Else
+                \State \Return p.FindContinuation(route2)
+            \EndIf
+        \EndIf
+
+  \EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Αλγόριθμος Replace}
+\label{algo:replace}
+\begin{algorithmic}[1]
+  \Procedure{p.Replace}{failed}
+        \If{failed.isConjugateTo(p)}
+            \State path(p).reduceBy(1)
+        \Else
+            \If{path(p).endsWith('1')}
+	            \State path(p) $\gets$ path(failed)
+            \Else
+                \State path(p).reduceBy(1)
+            \EndIf
+        \EndIf
+        \State p.refreshRoutingTable()
+  \EndProcedure
+\end{algorithmic}
+\end{algorithm}
