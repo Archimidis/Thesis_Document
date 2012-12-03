@@ -1,4 +1,4 @@
-find . -name *~ -print0 | xargs -0 rm
+find . -name '*~' -delete
 rm *.bbl
 rm *.blg
 rm *.idx 
