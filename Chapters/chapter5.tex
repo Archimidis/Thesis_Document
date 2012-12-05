@@ -213,28 +213,51 @@ churn.
 Στην περίπτωση του P-Grid έχουμε την εφαρμογή της τεχνικής της 
 αντιγραφής (replication). Υπάρχουν peer αντίγραφα άλλων που ο ρόλος τους 
 είναι να πάρουν την θέση τους στην περίπτωση που αποτύχουν. 
-Η τεχνική του replication όμως στερεί
-%ΠΟΙΟ ΕΙΝΑΙ ΤΟ ΠΡΟΒΛΗΜΑ ΜΕ ΤΙΣ ΤΕΧΝΙΚΕΣ REDUNDANCY 
-%ΚΑΙ REPLICATION;
+Η τεχνική του replication όμως απαιτεί ένα μέρος του δικτύου να λειτουργούν 
+ως αντίγραφα. Συνεπώς, μειώνεται η χωρητικότητα του συστήματος και έχουμε 
+το επιπλέον κόστος της συντήρησης και του συγχρονισμού. Όλοι οι peer 
+αντίγραφα πρέπει να έχουν όχι μόνο ενημερωμένες τις δομές τους αλλά και 
+όλα τα δεδομένα που αποθηκεύουν.
 
-\subsection{Αλγόριθμος Επιδιόρθωσης}
+% εξήγηση γιατί καταλήξαμε στο συγκεκριμένο πρωτόκολλο;
+
+\subsection{Ανάλυση Πρωτοκόλλου}
+
+Για να βρεθεί εκείνος ο peer που θα δώσει την λύση στην αποτυχία πρέπει 
+να διασχίσουμε την τοπολογία του P-Grid δικτύου με συγκεκριμένο τρόπο. Ο 
+αλγόριθμος \ref{algo:Continuation} επιτελεί αυτό το έργο. Χρειάζεται ένα 
+όρισμα το ίχνος, \textit{pathTrace}. Αυτό αντιπροσωπεύει την διαδρομή που 
+ακολουθεί η επιδιόρθωση μέσα στο δίκτυο. Ο αλγόριθμος εκτελείται εξολοκλήρου 
+τοπικά από τους peer του δικτύου. Κατά τον τερματισμό της εκτέλεσης τους 
+θα επιστραφεί εκείνος ο peer που είναι υπεύθυνος να συνεχίσει την εκτέλεση 
+του πρωτοκόλλου επιδιόρθωσης. 
+Στην γραμμή \ref{code:Check1} ελέγχεται αν ο peer που εκτελεί τον αλγόριθμο 
+είναι σε μικρότερο μονοπάτι από το ίχνος. Το μονοπάτι και το ίχνος μπορεί να 
+έχουν κάποια σχέση αν ο peer ανήκει στο ίδιο υπόδεντρο με αυτό του ίχνους. 
+Στην περίπτωση αυτή δεν μπορεί να αποφασίσει για την κατεύθυνση. Επιλέγει 
+έναν peer από τον πίνακα δρομολόγησης του που είναι πιο κοντά στο ίχνος και 
+τον επιστρέφει με στόχο να συνεχίσει εκεί το πρωτόκολλο επιδιόρθωσης.
+Στην γραμμή \ref{code:Check2} έχουμε την περίπτωση όπου το ίχνος είναι 
+όμοιο με το μονοπάτι του peer ο οποίος και επιστρέφεται. 
+Στην συνέχεια, δεδομένου ότι δεν ισχύει τίποτα από τα παραπάνω, αποφασίζεται 
+η διαδρομή που πρέπει να ακολουθηθεί.
 
 \begin{algorithm}
 \caption{Αλγόριθμος FindContinuation}
-\label{algo:continuation}
+\label{algo:Continuation}
 \begin{algorithmic}[1]
-  \Procedure{p.FindContinuation}{pathTrace}
-        \If{p.isPrefixOf(pathTrace)}
+    \Procedure{p.FindContinuation}{pathTrace}
+        \If{p.isPrefixOf(pathTrace) $\cup$ (path(p).length() $\leq$ pathTrace.length())} \label{code:Check1}
             \State \Return p.closestLevelTo(pathTrace)
         \EndIf
-        \If{path(p) $\equiv$ pathTrace}
+        \If{path(p) $\equiv$ pathTrace} \label{code:Check2}
             \State \Return p
         \EndIf
-        \If{path(p).length() $\leq$ pathTrace.length()}
-            \State \Return p.closestLevelTo(pathTrace)
-        \EndIf
+        %\If{path(p).length() $\leq$ pathTrace.length()} \label{code:Check3}
+        %    \State \Return p.closestLevelTo(pathTrace)
+        %\EndIf
         \State route1 $\gets$ pathTrace.revertAndAppend(pathTrace.lastBit())
-        \State route2 $\gets$ pathTrace.Append(pathTrace.lastBit())
+        \State route2 $\gets$ pathTrace.append(pathTrace.lastBit())
         \If{p.hasPrefix(route1)}
             \If{path(p).length() $<$ route1.length()}
                 \If{path(p) $\equiv$ route1}
@@ -257,15 +280,30 @@ churn.
             \EndIf
         \EndIf
 
-  \EndProcedure
+    \EndProcedure
 \end{algorithmic}
 \end{algorithm}
 
+Ο αλγόριθμος επιδιόρθωσης θα καταλήξει σε έναν peer. Αυτός μαζί με τον 
+συζυγή του πρόκειται να δώσουν την λύση στην αποτυχία. Ο αλγόριθμος 
+\ref{algo:Replace} δείχνει τον τρόπο. Συγκεκριμένα, ο ένας από τους δυο 
+peer θα λάβει το μονοπάτι που αντιστοιχεί στην αποτυχία. Ο δεύτερος θα 
+μειώσει το μονοπάτι του κατά ένα, δηλαδή γενικεύεται. Υπενθυμίζουμε πως 
+ως αποτυχία θεωρείται είτε ένας peer, είτε ένα το σύνολο των peer ενός 
+υποδέντρου. Από σύμβαση, ο peer του οποίου το μονοπάτι καταλήγει σε '1', 
+είναι αυτός που θα αντικαταστήσει. Τέλος, ανανεώνουν τον πίνακα 
+δρομολόγησης. Στην απλή περίπτωση που η αποτυχία 
+είναι ο συζυγής peer, τότε απλά μειώνεται το μονοπάτι κατά ένα. 
+Ο αλγόριθμος \ref{algo:Replace} εκτελείται ταυτόχρονα από τους δύο peer 
+που είναι υπεύθυνοι για λύση. Όταν τερματίσει και από τους δυο τότε, οι 
+δυο peer έχουν διορθώσει το πρόβλημα. Το επόμενο βήμα είναι η αναμετάδοση 
+της λύσης μέσα στο δίκτυο.
+
 \begin{algorithm}
 \caption{Αλγόριθμος Replace}
-\label{algo:replace}
+\label{algo:Replace}
 \begin{algorithmic}[1]
-  \Procedure{p.Replace}{failed}
+    \Procedure{p.Replace}{failed}
         \If{failed.isConjugateTo(p)}
             \State path(p).reduceBy(1)
         \Else
@@ -276,6 +314,69 @@ churn.
             \EndIf
         \EndIf
         \State p.refreshRoutingTable()
-  \EndProcedure
+    \EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+Ο αλγόριθμος \ref{algo:Broadcast} είναι υπεύθυνος για την διάδοση της 
+λύσης στο δίκτυο. Ο peer στον οποίο θα καταλήξει ο αλγόριθμος επιδιόρθωσης % ref
+για να διορθώσει το πρόβλημα είναι αυτός που θα καλέσει την μέθοδο 
+\textit{InitBroadcast}. Τα ορίσματα που απαιτούνται είναι 
+\begin{inparaenum}[\itshape (a)\upshape]
+\item το μονοπάτι που αντιστοιχεί στην αποτυχία είτε αυτή είναι μεμονωμένος
+peer είτε ολόκληρο υπόδεντρο,
+\item μια λίστα με όλους τους peer που εξαιτίας της επίλυσης άλλαξαν την 
+κατάστασή τους και
+\item μια λίστα με όλους τους αποτυχημένους peer που έχουν πρόθεμα το 
+προαναφερθέν μονοπάτι.
+\end{inparaenum}
+Η λίστα με τους ανανεωμένους peer περιέχει τον peer που εκκινεί τον 
+αλγόριθμο και τον συζυγή του. Σε αυτούς κατέληξε ο αλγόριθμος επιδιόρθωσης 
+και συνεπώς αυτοί θα αλλάξουν το μονοπάτι τους ώστε να λύσουν την αποτυχία. 
+Αρχικά ανανεώνεται ο πίνακας δρομολόγησης αφαιρώντας όλους τους peer που 
+έχουν αποτύχει. Στη συνέχεια για κάθε επίπεδο που έχει αποθηκευμένο στον 
+πίνακα δρομολόγησης του, επιλέγει τυχαία έναν peer από αυτό και του προωθεί 
+την λύση. 
+
+Στη συνέχεια, οι υπόλοιποι peer εκτελούνε την μέθοδο \textit{Broadcast}. 
+Η μέθοδος αυτή έχει τα ίδια ορίσματα με την \textit{InitBroadcast} και 
+επιπλέον ένα, το \textit{subtree}. Αυτό υποδηλώνει στον peer πιο είναι το 
+υπόδεντρο για το οποίο είναι υπεύθυνος να προωθήσει την λύση. Όπως μπορούμε 
+να δούμε από τον ψευδοκώδικα, κάθε peer είναι υπεύθυνος για το υπόδεντρο στο 
+οποίο ανήκει. Ο λόγος για τον οποίο γίνεται αυτό είναι ο περιορισμός του 
+αριθμού των μηνυμάτων που πρέπει να στείλουμε. Σε αντίθετη περίπτωση πολλοί 
+peer θα δεχόντουσαν πολλαπλά μηνύματα για την ίδια λύση. Ο peer αφαιρεί από 
+τον πίνακα δρομολόγησης του τους αποτυχημένους peer. Αν έχει αναφορές σε 
+αυτούς που έχουν αλλάξει κατάσταση, τις ενημερώνει, αλλιώς 
+τους προσθέτει στον πίνακα. Καταλήγει προωθώντας την λύση επιλέγοντας τυχαία 
+έναν peer για κάθε επίπεδο του πίνακα που έχει πρόθεμα το μονοπάτι του 
+υποδέντρου για το οποίο είναι υπεύθυνος. Ένας peer δεν εκτελεί τον αλγόριθμο 
+όταν το μονοπάτι ευθύνης είναι όμοιο με το μονοπάτι του. Αυτό σημαίνει πως 
+δεν υπάρχουν peer περισσότερο εξειδικευμένοι από αυτόν.
+
+\begin{algorithm}
+\caption{Αλγόριθμος Broadcast}
+\label{algo:Broadcast}
+\begin{algorithmic}[1]
+    \Procedure{p.InitBroadcast}{failedPath, updatedHosts, failedHosts}
+        \State p.updateRoutingTable(failedHosts)
+        \ForAll{level in RoutingTable}
+            \State p' $\gets$ level.selectRandomHost()
+            \State subtree $\gets$ path(level)
+            \State p'.broadcast(failedPath, updatedHosts, failedHosts, subtree)
+        \EndFor
+    \EndProcedure
+    \Statex
+    \Procedure{p.Broadcast}{failedPath, updatedHosts, failedHosts, subtree}
+        \State p.updateRoutingTable(failedHosts, updatedHosts)
+        \If{path(p) $\equiv$ subtree}
+            \State \Return
+        \EndIf
+        \ForAll{level in RoutingTable.levelsIn(subtree)}
+            \State p' $\gets$ level.selectRandomHost()
+            \State subtree $\gets$ path(level)
+            \State p'.broadcast(failedPath, updatedHosts, failedHosts, subtree)
+        \EndFor
+    \EndProcedure
 \end{algorithmic}
 \end{algorithm}
