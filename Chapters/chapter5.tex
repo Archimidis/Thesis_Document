@@ -58,12 +58,6 @@ peer που έχουν αποθηκευμένους στους πίνακες δ
 θέτει ένα άνω όριο στον αριθμό των αναδρομών που θα εκτελεστούν και είναι 
 μια συνθήκη τερματισμού.
 
-%Στην αρχική μορφή του αλγορίθμου που περιγράφεται στη δημοσίευση 
-%\citep{Abererb}, τίθεται ένα όριο μέχρι το οποίο μπορεί να εξειδικευτούν 
-%οι peer. Ο λόγος ήταν η ομοιόμορφη κατανομή των μονοπατιών θεωρώντας πως 
-%επηρεάζει
-
-
 \begin{algorithm}
 \caption{Αλγόριθμος Exchange, μέρος 1ο}
 \label{algo:ExchangePart1}
@@ -210,6 +204,7 @@ churn.
 αντίστοιχα ανανεώνεται ο πίνακας. Στο Chord \citep{Chord} κάθε peer 
 κρατά μια λίστα με peer διαδόχους (successor). Στην περίπτωση αποτυχίας 
 επικοινωνεί με τον πιο κοντινό του τοπολογικά για να λύσει το πρόβλημα. 
+
 Στην περίπτωση του P-Grid έχουμε την εφαρμογή της τεχνικής της 
 αντιγραφής (replication). Υπάρχουν peer αντίγραφα άλλων που ο ρόλος τους 
 είναι να πάρουν την θέση τους στην περίπτωση που αποτύχουν. 
@@ -217,65 +212,210 @@ churn.
 ως αντίγραφα. Συνεπώς, μειώνεται η χωρητικότητα του συστήματος και έχουμε 
 το επιπλέον κόστος της συντήρησης και του συγχρονισμού. Όλοι οι peer 
 αντίγραφα πρέπει να έχουν όχι μόνο ενημερωμένες τις δομές τους αλλά και 
-όλα τα δεδομένα που αποθηκεύουν.
+όλα τα δεδομένα που αποθηκεύουν. Επίσης, αν αποτύχει ένας peer καθώς και όλα 
+τα αντίγραφά του τότε δημιουργείται ένα κενό στη τοπολογία του P-Grid. 
+Προκύπτουν μονοπάτια τα οποία δεν έχουν αντίστοιχα συζυγή το οποίο έχει 
+συνέπειες στην συνολική απόδοση του συστήματος. Είναι επομένως αναγκαία η 
+δημιουργία ενός πρωτοκόλλου που θα διατηρεί την δομή του δικτύου χωρίς να 
+δημιουργούνται κενά λόγω αποτυχιών ή αποχώρησης των peer.
 
-% εξήγηση γιατί καταλήξαμε στο συγκεκριμένο πρωτόκολλο;
+\subsection{Ανάλυση Αλγορίθμων Πρωτοκόλλου}
 
-\subsection{Ανάλυση Πρωτοκόλλου}
+Το πρωτόκολλο αποτελείται από τους αλγόριθμους FindContinuation, Replace και 
+Broadcast. Για την καλύτερη κατανόηση κρίνεται σκόπιμο να αναλυθούν 
+αυτοί πρώτα. Στην επόμενη ενότητα θα εξηγηθεί ο τρόπος και η σειρά με τον 
+οποίο χρησιμοποιούνται οι αλγόριθμοι αυτοί ώστε να λυθούν τα προβλήματα που 
+παρουσιάζονται στο δίκτυο.
+
+\subsubsection{Αλγόριθμος FindContinuation}
 
 Για να βρεθεί εκείνος ο peer που θα δώσει την λύση στην αποτυχία πρέπει 
 να διασχίσουμε την τοπολογία του P-Grid δικτύου με συγκεκριμένο τρόπο. Ο 
-αλγόριθμος \ref{algo:Continuation} επιτελεί αυτό το έργο. Χρειάζεται ένα 
-όρισμα το ίχνος, \textit{pathTrace}. Αυτό αντιπροσωπεύει την διαδρομή που 
-ακολουθεί η επιδιόρθωση μέσα στο δίκτυο. Ο αλγόριθμος εκτελείται εξολοκλήρου 
-τοπικά από τους peer του δικτύου. Κατά τον τερματισμό της εκτέλεσης τους 
-θα επιστραφεί εκείνος ο peer που είναι υπεύθυνος να συνεχίσει την εκτέλεση 
+αλγόριθμος \ref{algo:Continuation} (FindContinuation) επιτελεί αυτό το έργο. 
+Χρειάζεται ένα όρισμα, το ίχνος \textit{pathTrace}. Αυτό αντιπροσωπεύει την 
+διαδρομή που ακολουθεί η επιδιόρθωση μέσα στο δίκτυο. Ο αλγόριθμος εκτελείται 
+εξολοκλήρου τοπικά από τους peer του δικτύου. Κατά τον τερματισμό της εκτέλεσης 
+τους θα επιστραφεί εκείνος ο peer που είναι υπεύθυνος να συνεχίσει την εκτέλεση 
 του πρωτοκόλλου επιδιόρθωσης. 
-Στην γραμμή \ref{code:Check1} ελέγχεται αν ο peer που εκτελεί τον αλγόριθμο 
+
+Ο αλγόριθμος ξεκινά από ένα μονοπάτι το οποίο είναι πρόθεμα σε ένα υπόδεντρο. 
+Το ποθητό αποτέλεσμα είναι να καταλήξουμε σε ένα μονοπάτι το οποίο είναι 
+φύλλο μέσα στο P-Grid δέντρο, να αντιστοιχεί δηλαδή σε peer. Για να μπορέσει 
+αυτός ο peer να λύσει το πρόβλημα, όπως θα δούμε και παρακάτω στον αλγόριθμο 
+Replace, θα πρέπει στο συζυγές μονοπάτι του να βρίσκεται ένας peer και όχι 
+υπόδεντρο. Από την ανάλυση του αλγορίθμου \ref{algo:Continuation} προκύπτουν 
+κάποιες περιπτώσεις. Παρακάτω εξετάζονται αυτές και αναλύεται τι επιστρέφει ο 
+αλγόριθμος. Να σημειωθεί πως ο αλγόριθμος εκτελείται και τερματίζει τοπικά 
+χωρίς κάποια απομακρυσμένη κλήση συνάρτησης. 
+Όμως, ο peer που θα επιστραφεί από αυτόν είναι και αυτός που θα συνεχίσει το 
+πρωτόκολλο και θα εκτελέσει εκ νέου τον αλγόριθμο \ref{algo:Continuation}. 
+Αν το δούμε μακροσκοπικά, μέρος του δικτύου συνεργάζεται εκτελώντας τον 
+ώστε να καταλήξει σε συγκεκριμένο ζευγάρι peer. Το ζευγάρι αυτό θα λύσει και 
+την αποτυχία.
+
+Στην γραμμή \ref{code:Check1} έχουμε την περίπτωση όπου το ίχνος είναι 
+όμοιο με το μονοπάτι του peer ο οποίος και επιστρέφεται. 
+
+Στην γραμμή \ref{code:Check2} ελέγχεται αν ο peer που εκτελεί τον αλγόριθμο 
 είναι σε μικρότερο μονοπάτι από το ίχνος. Το μονοπάτι και το ίχνος μπορεί να 
 έχουν κάποια σχέση αν ο peer ανήκει στο ίδιο υπόδεντρο με αυτό του ίχνους. 
 Στην περίπτωση αυτή δεν μπορεί να αποφασίσει για την κατεύθυνση. Επιλέγει 
 έναν peer από τον πίνακα δρομολόγησης του που είναι πιο κοντά στο ίχνος και 
 τον επιστρέφει με στόχο να συνεχίσει εκεί το πρωτόκολλο επιδιόρθωσης.
-Στην γραμμή \ref{code:Check2} έχουμε την περίπτωση όπου το ίχνος είναι 
-όμοιο με το μονοπάτι του peer ο οποίος και επιστρέφεται. 
-Στην συνέχεια, δεδομένου ότι δεν ισχύει τίποτα από τα παραπάνω, αποφασίζεται 
-η διαδρομή που πρέπει να ακολουθηθεί.
+
+Δεδομένου ότι δεν ισχύει τίποτα από τα παραπάνω, αποφασίζεται η διαδρομή 
+που πρέπει να ακολουθηθεί. Με βάση το ίχνος οι δυνατές κατευθύνσεις είναι 
+δύο και προκύπτουν από το τελικό bit του. Στην γραμμή \ref{code:PathRoute1} 
+το πρώτο μονοπάτι \textit{route1} προκύπτει με την αντιστροφή του 
+τελευταίου bit και την προσθήκη του στο τέλος του ίχνους. Αντίστοιχα και 
+για το δεύτερο \textit{route2} στην γραμμή \ref{code:PathRoute2} χωρίς την 
+αντιστροφή. Στην ουσία τα δυο μονοπάτια είναι η κατεύθυνση προς τα υπόδεντρα 
+αριστερά και δεξιά του ίχνους 'x', 'x0' και 'x1'. Στα σχήματα 
+\ref{fig:Route1} και \ref{fig:Route2}, το ίχνος έχει τιμή 'x0' και συνεπώς 
+έχουμε $route1 = \textrm{'x01'}$ και $route2 = \textrm{'x00'}$. 
+Αντίστοιχα για την περίπτωση όπου το ίχνος είναι 'x1' έχουμε 
+$route1 = \textrm{'x10'}$ και $route2 = \textrm{'x11'}$. 
+Είναι προφανές πως και οι δύο περιπτώσεις είναι όμοιες στην διαχείριση. 
+Για την εξήγηση του αλγορίθμου χρησιμοποιούμε για ίχνος το 'x0' για τον peer 
+\textit{p} που εκτελεί τον αλγόριθμο τοπικά.
+
+\begin{figure}[ht]
+    \centering
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[scale=0.4]{Figures/Protocol/conPeer_route1equiv.png}
+        \caption{Peer p στο μονοπάτι route1 και peer στο συζυγές μονοπάτι}
+        \label{fig:Route1Case1a}
+    \end{subfigure}
+    \quad
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[scale=0.4]{Figures/Protocol/conSubtree_route1equiv.png}
+        \caption{Peer p στο μονοπάτι route1 και υπόδεντρο στο συζυγές μονοπάτι}
+        \label{fig:Route1Case1b}
+    \end{subfigure}
+    \quad
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[scale=0.4]{Figures/Protocol/conSubtree_route1subtree.png}
+        \caption{Το μονοπάτι route1 είναι πρόθεμα σε υπόδεντρο που περιέχει τον peer p}
+        \label{fig:Route1Case2}
+    \end{subfigure}
+    \caption{Περιπτώσεις κατά την επιλογή της κατεύθυνσης \textit{route1 $\equiv$ 'x01'}}
+    \label{fig:Route1}
+\end{figure}
+
+Αρχικά ελέγχουμε το μονοπάτι του peer που εκτελεί τον αλγόριθμο με τη πρώτη 
+διαδρομή \textit{route1}. Στη γραμμή \ref{code:CheckRoute1} αποφασίζεται αν 
+ο peer έχει πρόθεμα το \textit{route1}. Αν η απάντηση είναι αληθής τότε 
+διακρίνουμε τρεις περιπτώσεις που πρέπει να ελέγξουμε. Οι περιπτώσεις αυτές 
+είναι που βρίσκεται ο peer που εκτελεί τον αλγόριθμο και τι συμβαίνει στο 
+συζυγές μονοπάτι του \textit{route1}. Ένας πρώτος διαχωρισμός είναι αν 
+το μονοπάτι του peer είναι όμοιο με το \textit{route1} ή όχι. Ο έλεγχος 
+φαίνεται στη γραμμή \ref{code:Route1Equiv}. 
+
+Για την περίπτωση της ομοιότητας για να αποφανθούμε τι τελικά θα ακολουθήσουμε 
+πρέπει να εξετάσουμε το συζυγές μονοπάτι του \textit{route1}. Εδώ έχουμε δυο 
+περιπτώσεις, η πρώτη είναι το συζυγές να αντιστοιχεί σε μόνο ένα peer και 
+εξετάζεται στη γραμμή \ref{code:Route1EquivConPeer}. Η κατάσταση αυτή φαίνεται 
+ξεκάθαρα στο σχήμα\ref{fig:Route1Case1a}. Ο αλγόριθμος τερματίζει και 
+επιστρέφεται ο peer \textit{p} που τον εκτέλεσε. Η διάσχιση οδήγησε σε δυο 
+φύλλα του δέντρου του P-Grid και οι δυο peer που αντιστοιχούν σε αυτά μπορούν 
+να λύσουν την αποτυχία. Αντίθετα στη γραμμή \ref{code:Route1EquivConSubtree} 
+καταλήγουμε αν το συζυγές μονοπάτι αντιστοιχεί σε ένα υπόδεντρο που περιέχει 
+άνω του ενός peer. Η κατάσταση απεικονίζεται στο σχήμα \ref{fig:Route1Case1b}, 
+δεν έχουμε φτάσει σε φύλλα. Όμως, οι δυο peer που θα δώσουν την λύση βρίσκονται 
+στο υπόδεντρο αυτό. Συνεπώς, ο αλγόριθμος τερματίζει επιστρέφοντας έναν peer 
+που βρίσκεται στον πίνακα δρομολόγησης του \textit{p}. Αυτός ανήκει στο συζυγές 
+υπόδεντρο του \textit{route1}, έχοντας δηλαδή πρόθεμα το \textit{route2}. 
+Στο σχήμα \ref{fig:Route1Case1b} είναι στο 'x00'. 
+
+Η τελική περίπτωση που έχουμε για την διαδρομή \textit{route1} 
+είναι στη γραμμή \ref{code:Route1Subtrees} όπου η διαδρομή είναι πρόθεμα ενός 
+υποδέντρου. Στο συζυγές υπόδεντρο δε μας ενδιαφέρει τι γίνεται. 
+Ανεξάρτητα του αριθμού των peer που βρίσκονται σε αυτό, οι peer που θα δώσουν 
+την λύση βρίσκονται στο υπόδεντρο με πρόθεμα \textit{route1}. 
+Η επιλογή της διαδρομής στην περίπτωση αυτή γίνεται κατά σύμβαση. Ο αλγόριθμος 
+συνεχίζει αναδρομικά εξειδικεύοντας σε αυτό το υπόδεντρο μέχρι να φτάσει σε 
+διαδρομή που αντιστοιχεί σε έναν peer ακριβώς. 
+
+\begin{figure}[ht]
+    \centering
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[scale=0.4]{Figures/Protocol/route2equiv_conPeer.png}
+        \caption{Peer p στο μονοπάτι route2 και peer στο συζυγές μονοπάτι}
+        \label{fig:Route2Case1a}
+    \end{subfigure}
+    \quad
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[scale=0.4]{Figures/Protocol/route2equiv_conSubtree.png}
+        \caption{Peer p στο μονοπάτι route2 και υπόδεντρο στο συζυγές μονοπάτι}
+        \label{fig:Route2Case1b}
+    \end{subfigure}
+    \quad
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[scale=0.4]{Figures/Protocol/route2subtree_conSubtree.png}
+        \caption{Το μονοπάτι route2 είναι πρόθεμα σε υπόδεντρο που περιέχει τον peer p}
+        \label{fig:Route2Case2}
+    \end{subfigure}
+    \caption{Περιπτώσεις κατά την επιλογή της κατεύθυνσης \textit{route2 $\equiv$ 'x00'}}
+    \label{fig:Route2}
+\end{figure}
+
+Αν ο peer \textit{p} δεν έχει πρόθεμα το μονοπάτι \textit{route1} τότε 
+βρίσκεται στο \textit{route2}. Ο έλεγχος φαίνεται στην γραμμή 
+\ref{code:CheckRoute2}. Αντίστοιχα και εδώ έχουμε παρόμοιες περιπτώσεις απλά 
+αλλάζει η θέση του peer \textit{p}. 
+
+Συγκεκριμένα, στην γραμμή \ref{code:Route2Equiv} κρίνεται αν ο π \textit{p} 
+έχει μονοπάτι όμοιο με το \textit{route2}. Η περίπτωση που απεικονίζεται στο 
+σχήμα \ref{fig:Route2Case1a}, όπου \textit{route2} είναι ίσο με 'χ00', 
+αντιστοιχεί στην επαλήθευση του ελέγχου στην γραμμή 
+\ref{code:Route1EquivConPeer}. Ο αλγόριθμος έχει οδηγηθεί σε φύλλα και άρα 
+έχουν βρεθεί οι peer που θα λύσουν το πρόβλημα. Επιστρέφεται επομένως ο peer 
+\textit{p}. Αντίθετα, αν έχουμε συζυγές υπόδεντρο με πρόθεμα \textit{route1}, 
+τότε το ακολουθούμε επιστρέφοντας έναν peer που ανήκει σε αυτό. Στο σχήμα 
+\ref{fig:Route2Case1b} φαίνεται η περίπτωση αυτή.
+
+Τέλος, στην γραμμή \ref{code:Route2Subtrees} είναι η περίπτωση όπου η 
+διαδρομή \textit{route2} είναι πρόθεμα στο υπόδεντρο που ανήκει ο \textit{p}. 
+Ο αλγόριθμος συνεχίζει αναδρομικά προς αυτή την διαδρομή ώστε να εξειδικευτεί 
+περισσότερο και να καταλήξουμε σε διαδρομή που αντιστοιχεί σε peer.
 
 \begin{algorithm}
 \caption{Αλγόριθμος FindContinuation}
 \label{algo:Continuation}
 \begin{algorithmic}[1]
     \Procedure{p.FindContinuation}{pathTrace}
-        \If{p.isPrefixOf(pathTrace) $\cup$ (path(p).length() $\leq$ pathTrace.length())} \label{code:Check1}
-            \State \Return p.closestLevelTo(pathTrace)
-        \EndIf
-        \If{path(p) $\equiv$ pathTrace} \label{code:Check2}
+        \If{path(p) $\equiv$ pathTrace} \label{code:Check1}
             \State \Return p
         \EndIf
-        %\If{path(p).length() $\leq$ pathTrace.length()} \label{code:Check3}
-        %    \State \Return p.closestLevelTo(pathTrace)
-        %\EndIf
-        \State route1 $\gets$ pathTrace.revertAndAppend(pathTrace.lastBit())
-        \State route2 $\gets$ pathTrace.append(pathTrace.lastBit())
-        \If{p.hasPrefix(route1)}
-            \If{path(p).length() $<$ route1.length()}
-                \If{path(p) $\equiv$ route1}
+        \If{p.isPrefixOf(pathTrace) $\cup$ (path(p).length() $\leq$ pathTrace.length())} \label{code:Check2}
+            \State \Return p.closestLevelTo(pathTrace)
+        \EndIf
+        \State route1 $\gets$ pathTrace + $\neg$pathTrace.lastBit() \label{code:PathRoute1}
+        \State route2 $\gets$ pathTrace + pathTrace.lastBit() \label{code:PathRoute2}
+        \If{p.hasPrefix(route1)} \label{code:CheckRoute1}
+            \If{path(p) $\equiv$ route1} \label{code:Route1Equiv}
+                \If{p has conjugate peer and not a subtree} \label{code:Route1EquivConPeer}
                     \State \Return p
-                \Else
-                    \State \Return p.FindContinuation(route1)
+                \Else \label{code:Route1EquivConSubtree}
+                    \State \Return p.closestLevelTo(route2)
                 \EndIf
-            \Else
-                \State \Return p.closestLevelTo(route2)
+            \Else \label{code:Route1Subtrees}
+                \State \Return p.FindContinuation(route1)
             \EndIf
-        \Else
-            \If{p.hasPrefix(route2)}
-                \If{p has conjugate peer and not a subtree}
+        \ElsIf{p.hasPrefix(route2)} \label{code:CheckRoute2}
+            \If{path(p) $\equiv$ route2} \label{code:Route2Equiv}
+                \If{p has conjugate peer and not a subtree} \label{code:Route2EquivConPeer}
                     \State \Return p
-                \Else
+                \Else \label{code:Route2EquivConSubtree}
                     \State \Return p.closestLevelTo(route1)
                 \EndIf
-            \Else
+            \Else \label{code:Route2Subtrees}
                 \State \Return p.FindContinuation(route2)
             \EndIf
         \EndIf
@@ -284,11 +424,12 @@ churn.
 \end{algorithmic}
 \end{algorithm}
 
+\subsubsection{Αλγόριθμος Replace}
 Ο αλγόριθμος επιδιόρθωσης θα καταλήξει σε έναν peer. Αυτός μαζί με τον 
 συζυγή του πρόκειται να δώσουν την λύση στην αποτυχία. Ο αλγόριθμος 
-\ref{algo:Replace} δείχνει τον τρόπο. Συγκεκριμένα, ο ένας από τους δυο 
-peer θα λάβει το μονοπάτι που αντιστοιχεί στην αποτυχία. Ο δεύτερος θα 
-μειώσει το μονοπάτι του κατά ένα, δηλαδή γενικεύεται. Υπενθυμίζουμε πως 
+\ref{algo:Replace} (Replace) δείχνει τον τρόπο. Συγκεκριμένα, ο ένας από 
+τους δυο peer θα λάβει το μονοπάτι που αντιστοιχεί στην αποτυχία. Ο δεύτερος 
+θα μειώσει το μονοπάτι του κατά ένα, δηλαδή γενικεύεται. Υπενθυμίζουμε πως 
 ως αποτυχία θεωρείται είτε ένας peer, είτε ένα το σύνολο των peer ενός 
 υποδέντρου. Από σύμβαση, ο peer του οποίου το μονοπάτι καταλήγει σε '1', 
 είναι αυτός που θα αντικαταστήσει. Τέλος, ανανεώνουν τον πίνακα 
@@ -318,8 +459,9 @@ peer θα λάβει το μονοπάτι που αντιστοιχεί στη�
 \end{algorithmic}
 \end{algorithm}
 
-Ο αλγόριθμος \ref{algo:Broadcast} είναι υπεύθυνος για την διάδοση της 
-λύσης στο δίκτυο. Ο peer στον οποίο θα καταλήξει ο αλγόριθμος επιδιόρθωσης % ref
+\subsubsection{Αλγόριθμος Broadcast}
+Ο αλγόριθμος \ref{algo:Broadcast} (Broadcast) είναι υπεύθυνος για την διάδοση 
+της λύσης στο δίκτυο. Ο peer στον οποίο θα καταλήξει ο αλγόριθμος επιδιόρθωσης % ref
 για να διορθώσει το πρόβλημα είναι αυτός που θα καλέσει την μέθοδο 
 \textit{InitBroadcast}. Τα ορίσματα που απαιτούνται είναι 
 \begin{inparaenum}[\itshape (a)\upshape]
@@ -380,3 +522,5 @@ peer θα δεχόντουσαν πολλαπλά μηνύματα για την
     \EndProcedure
 \end{algorithmic}
 \end{algorithm}
+
+\subsection{Ανάλυση Πρωτοκόλλου}
