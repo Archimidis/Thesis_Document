@@ -122,13 +122,6 @@ Dependency Injection. Ο κώδικας χωρίζεται σε ευδιάκρι
 οποία εξαρτάται η κλάση.
 
 \subsection{Guice}
-\begin{wrapfigure}{L}{0.5\textwidth}
-  \begin{center}
-    \includegraphics[width=0.48\textwidth]{Figures/Guice_modules.png}
-  \end{center}
-  \caption{Σύνθεση module μέσω της Guice}
-  \label{fig:Guice}
-\end{wrapfigure}
 
 Στην υλοποίηση της βιβλιοθήκης χρησιμοποιήθηκε η Guice, ένα ελαφρύ 
 πλαίσιο που υλοποιεί το πρότυπο dependency injection για την Java 
@@ -136,6 +129,14 @@ Dependency Injection. Ο κώδικας χωρίζεται σε ευδιάκρι
 συνδέσεων μεταξύ διεπαφών και υλοποιήσεων περιέχονται κυρίως σε ένα 
 Module. Γενικά μια εφαρμογή που ακολουθεί αυτό το πρότυπο αποτελείται 
 από διάφορα module και κώδικα που αφορά την αρχικοποίηση της.
+
+\begin{wrapfigure}{L}{0.5\textwidth}
+  \begin{center}
+    \includegraphics[width=0.48\textwidth]{Figures/Guice_modules.png}
+  \end{center}
+  \caption{Σύνθεση module μέσω της Guice}
+  \label{fig:Guice}
+\end{wrapfigure}
 
 Η κλάση που είναι υπεύθυνη για την κατασκευή των αντικειμένων είναι ο 
 Injector. Για την αρχικοποίηση του χρειάζονται τα module. Σε γενικές 
