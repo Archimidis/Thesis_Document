@@ -15,6 +15,13 @@
 \usepackage{hyperref}
 \usepackage{fancyhdr}
 \usepackage{paralist}
+\usepackage{afterpage}
+
+\newcommand\blankpage{%
+    \null
+    \thispagestyle{empty}%
+    \addtocounter{page}{-1}%
+    \newpage}
 
 % TODO: Remove 
 \usepackage{lineno}
@@ -37,8 +44,10 @@
 \renewcommand{\algorithmicforall}{\textbf{for each}}
 %% ----------------------------------------------------------------
 \begin{document}
+\afterpage{\blankpage}
 \input{./Titlepage.tex}
 
+\afterpage{\blankpage}
 \pagenumbering{roman}
 \begin{abstract}
 Τα peer-to-peer συστήματα εμπεριέχουν διάφορες προκλήσεις στον σχεδιασμό 
@@ -62,6 +71,7 @@ peer-to-peer μοντέλο. Τα υπηρεσιοκεντρικά συστήμ�
 φαινομένου churn. 
 \end{abstract}
 
+\afterpage{\blankpage}
 \renewcommand{\abstractname}{Eυχαριστίες}
 \begin{abstract}
 Θα ήθελα να ευχαριστήσω τον επιβλέποντα καθηγητή κ. Βασίλη Σαμολαδά, για 
@@ -70,6 +80,9 @@ peer-to-peer μοντέλο. Τα υπηρεσιοκεντρικά συστήμ�
 σύντροφό μου, για την υπομονή και υποστήριξη που έδειξαν κατά τη διάρκεια 
 των σπουδών μου. 
 \end{abstract}
+
+\pagebreak
+\newpage
 
 \tableofcontents
 \listoffigures
